@@ -1,0 +1,377 @@
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:monospace;}
+#wrap{position:relative;width:640px;height:480px;image-rendering:pixelated;}
+canvas{display:block;image-rendering:pixelated;}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+#hud{position:absolute;top:8px;left:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+#title-hud{background:rgba(0,0,0,0.6);color:#f7d488;font-size:10px;padding:4px 8px;border:1px solid #f7d488;letter-spacing:1px;}
+#mem-count{background:rgba(0,0,0,0.6);color:#a8d8a8;font-size:10px;padding:4px 8px;border:1px solid #a8d8a8;}
+#p1-hud{background:rgba(0,0,0,0.6);color:#e8c4a0;font-size:9px;padding:4px 8px;border:1px solid #e8c4a0;}
+#p2-hud{background:rgba(0,0,0,0.6);color:#c4a0e8;font-size:9px;padding:4px 8px;border:1px solid #c4a0e8;}
+#hint{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.55);color:#aaa;font-size:9px;padding:4px 8px;letter-spacing:0.5px;}
+#dialogue{position:absolute;bottom:12px;left:12px;right:12px;background:rgba(10,10,20,0.95);border:2px solid #f7d488;padding:12px 14px 10px;display:none;pointer-events:auto;}
+#dlg-name{font-size:10px;letter-spacing:2px;margin-bottom:6px;text-transform:uppercase;}
+#dlg-text{color:#f0ece4;font-size:11px;line-height:1.7;min-height:36px;}
+#dlg-next{color:#f7d488;font-size:9px;text-align:right;margin-top:6px;animation:blink 1s step-start infinite;}
+@keyframes blink{50%{opacity:0;}}
+#journal{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,10,20,0.96);border:2px solid #a8d8a8;padding:20px;display:none;pointer-events:auto;overflow-y:auto;}
+#journal h2{color:#a8d8a8;font-size:12px;letter-spacing:3px;margin-bottom:14px;text-transform:uppercase;}
+.j-entry{color:#f0ece4;font-size:10px;line-height:1.8;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.08);}
+.j-entry.locked{color:#444;}
+#journal-close{color:#f7d488;font-size:9px;margin-top:14px;cursor:pointer;display:block;letter-spacing:1px;}
+#titlescreen{position:absolute;top:0;left:0;width:100%;height:100%;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;z-index:20;}
+#titlescreen h1{color:#f7d488;font-size:22px;letter-spacing:4px;margin-bottom:6px;}
+#titlescreen p{color:#a8d8a8;font-size:10px;letter-spacing:2px;margin-bottom:6px;}
+.ctrl-box{display:flex;gap:24px;margin:16px 0 24px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);padding:12px 20px;}
+.ctrl-col{font-size:9px;line-height:2;letter-spacing:1px;}
+.ctrl-col span{display:block;color:#888;}
+.ctrl-col b{color:#f0ece4;}
+#start-btn{background:none;border:2px solid #f7d488;color:#f7d488;font-family:monospace;font-size:11px;padding:10px 28px;cursor:pointer;letter-spacing:2px;transition:all 0.2s;}
+#start-btn:hover{background:#f7d488;color:#1a1a2e;}
+</style>
+
+<div id="wrap">
+  <canvas id="game" width="640" height="480"></canvas>
+  <div id="ui">
+    <div id="hud">
+      <div id="title-hud">LOST & FOUND</div>
+      <div id="mem-count">MEMORIES: 0/5</div>
+      <div id="p1-hud">P1 WASD+F</div>
+      <div id="p2-hud">P2 ARROWS+L</div>
+    </div>
+    <div id="hint">find glowing objects to unlock memories · J = journal</div>
+    <div id="dialogue">
+      <div id="dlg-name"></div>
+      <div id="dlg-text"></div>
+      <div id="dlg-next">▼ F or L to continue</div>
+    </div>
+    <div id="journal">
+      <h2>✦ Memory Journal</h2>
+      <div id="journal-entries"></div>
+      <span id="journal-close">[ close — press J ]</span>
+    </div>
+    <div id="titlescreen">
+      <h1>LOST & FOUND</h1>
+      <p>a story of two, told in places</p>
+      <div class="ctrl-box">
+        <div class="ctrl-col">
+          <b style="color:#e8c4a0">Player 1 — Boy</b>
+          <span>Move: <b>WASD</b></span>
+          <span>Interact: <b>F</b></span>
+        </div>
+        <div class="ctrl-col">
+          <b style="color:#c4a0e8">Player 2 — Girl</b>
+          <span>Move: <b>Arrow Keys</b></span>
+          <span>Interact: <b>L</b></span>
+        </div>
+      </div>
+      <button id="start-btn">▶ START</button>
+    </div>
+  </div>
+</div>
+<div style="color:#444;font-size:10px;margin-top:8px;font-family:monospace;letter-spacing:1px;">P1: WASD+F &nbsp;·&nbsp; P2: ARROWS+L &nbsp;·&nbsp; J: journal</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const C = {
+  floor1:'#2d2d4e',floor2:'#252540',wall:'#0f0f1e',wallTop:'#3a3a6e',
+  grass:'#2d5a27',grass2:'#3a7a32',path:'#8b7355',water:'#1a4a6e',water2:'#1f5580',
+  sand:'#c4a882',accent:'#f7d488',green:'#a8d8a8',pink:'#e8a0b4',
+  blue:'#a0c4e8',purple:'#c4a0e8',red:'#e87070',white:'#f0ece4',dark:'#0a0a14',
+  boy:'#e8c4a0', girl:'#c4a0e8',
+};
+
+// MAP — fixed: bottom rooms now connected, rooftop accessible
+const TW=20,TH=15,TS=32;
+const MAP=[
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,1,1,1,1,1,0,2,2,2,2,2,2,2,2,2,2,2,2,0],
+  [0,1,1,1,1,1,0,2,2,2,2,2,2,2,2,2,2,2,2,0],
+  [0,1,1,1,1,1,0,2,2,4,4,4,2,2,2,2,2,2,2,0],
+  [0,1,1,1,1,1,0,2,2,4,4,4,2,2,5,5,5,2,2,0],
+  [0,1,1,1,1,1,0,2,2,4,4,4,2,2,5,5,5,2,2,0],
+  [0,0,0,1,0,0,0,2,2,2,2,2,2,2,5,5,5,2,2,0],
+  [0,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,0],
+  [0,3,0,0,0,0,0,0,0,3,0,0,0,0,0,3,2,2,2,0],
+  [0,3,0,1,1,1,1,0,0,3,0,1,1,1,0,3,2,2,2,0],
+  [0,3,0,1,1,1,1,0,0,3,0,1,1,1,0,3,2,2,2,0],
+  [0,3,0,1,1,1,1,0,0,3,0,1,1,1,0,3,2,2,2,0],
+  [0,3,0,0,1,0,0,0,0,3,0,0,1,0,0,3,2,2,2,0],
+  [0,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+
+const OBJECTS=[
+  {id:'bench', tx:10,ty:2, label:'Wooden Bench',  mem:0, color:C.accent, shape:'bench'},
+  {id:'record',tx:2, ty:2, label:'Record Player', mem:1, color:C.pink,   shape:'circle'},
+  {id:'window',tx:4, ty:3, label:'Rainy Window',  mem:2, color:C.blue,   shape:'square'},
+  {id:'fire',  tx:3, ty:10,label:'Fireplace',     mem:3, color:C.red,    shape:'fire'},
+  {id:'roof',  tx:12,ty:10,label:'Rooftop Spot',  mem:4, color:C.purple, shape:'star'},
+];
+
+const MEMORIES=[
+  {name:'The Bench',    text:"You used to save me a seat. I never had to ask. I'd arrive and there it was — your jacket, the empty side, your smile already waiting.", color:C.accent},
+  {name:'Our Song',     text:"We found that record at the back of a dusty shop. You played it so loud the neighbors knocked. We danced anyway.", color:C.pink},
+  {name:'The Rain',     text:"We watched the whole storm from that window. You counted the seconds between lightning and thunder. You were always trying to measure the world.", color:C.blue},
+  {name:'Winter Night', text:"The fire kept going out. We'd argue over whose turn it was to fix it, then forget to argue because something funnier always happened.", color:C.red},
+  {name:'The Rooftop',  text:"We came up here when the world got too loud. You always said the city looked like a circuit board. I just saw the lights.", color:C.purple},
+];
+
+// Players
+const players=[
+  {x:3*TS+16,y:2*TS+16,w:14,h:14,speed:2,dir:0,vx:0,vy:0,color:C.boy,  hairColor:'#5a3a1a',shirtColor:'#a0c4e8',label:'P1'},
+  {x:5*TS+16,y:2*TS+16,w:14,h:14,speed:2,dir:0,vx:0,vy:0,color:C.girl, hairColor:'#2a1a0a',shirtColor:'#e8a0b4',label:'P2'},
+];
+
+const keys={};
+let animT=0;
+let dlgActive=false,dlgObj=null,dlgTyping=false,dlgTyped='',dlgFull='',dlgTimer=0;
+let journalOpen=false;
+let found=new Set();
+
+function canWalk(nx,ny){
+  const corners=[{x:nx-6,y:ny-6},{x:nx+6,y:ny-6},{x:nx-6,y:ny+6},{x:nx+6,y:ny+6}];
+  for(let c of corners){
+    const tx=Math.floor(c.x/TS),ty=Math.floor(c.y/TS);
+    if(tx<0||ty<0||tx>=TW||ty>=TH) return false;
+    if(MAP[ty][tx]===0) return false;
+  }
+  return true;
+}
+
+function getNearObj(p){
+  for(let o of OBJECTS){
+    const ox=o.tx*TS+TS/2,oy=o.ty*TS+TS/2;
+    const dx=p.x-ox,dy=p.y-oy;
+    if(Math.sqrt(dx*dx+dy*dy)<44) return o;
+  }
+  return null;
+}
+
+function startDialogue(o){
+  dlgObj=o; dlgActive=true;
+  const m=MEMORIES[o.mem];
+  document.getElementById('dlg-name').textContent=m.name;
+  document.getElementById('dlg-name').style.color=m.color;
+  dlgFull=m.text; dlgTyped=''; dlgTyping=true; dlgTimer=0;
+  document.getElementById('dialogue').style.display='block';
+  document.getElementById('dlg-text').textContent='';
+  document.getElementById('dlg-next').style.display='none';
+}
+
+function advanceDlg(){
+  if(dlgTyping){
+    dlgTyped=dlgFull; dlgTyping=false;
+    document.getElementById('dlg-text').textContent=dlgFull;
+    document.getElementById('dlg-next').style.display='block';
+    return;
+  }
+  found.add(dlgObj.id);
+  document.getElementById('mem-count').textContent=`MEMORIES: ${found.size}/5`;
+  document.getElementById('dialogue').style.display='none';
+  dlgActive=false; dlgObj=null;
+}
+
+function toggleJournal(){
+  journalOpen=!journalOpen;
+  const jEl=document.getElementById('journal');
+  if(journalOpen){
+    jEl.style.display='block';
+    const el=document.getElementById('journal-entries');
+    el.innerHTML='';
+    MEMORIES.forEach((m,i)=>{
+      const d=document.createElement('div');
+      const id=OBJECTS[i].id;
+      if(found.has(id)){
+        d.className='j-entry';
+        d.style.borderColor=m.color+'44';
+        d.innerHTML=`<span style="color:${m.color};letter-spacing:1px;">${m.name}</span><br>${m.text}`;
+      } else {
+        d.className='j-entry locked';
+        d.textContent=`??? — memory ${i+1} not yet found`;
+      }
+      el.appendChild(d);
+    });
+  } else { jEl.style.display='none'; }
+}
+
+// ── TILE DRAW ──
+function drawTile(tx,ty,t){
+  const x=tx*TS,y=ty*TS;
+  const colors={0:C.wall,1:C.floor1,2:C.grass,3:C.path,4:C.water,5:C.sand};
+  ctx.fillStyle=colors[t]||C.dark; ctx.fillRect(x,y,TS,TS);
+  if(t===1){ctx.fillStyle=C.floor2;ctx.fillRect(x+2,y+2,4,4);ctx.fillRect(x+TS-8,y+TS-8,4,4);}
+  if(t===2){ctx.fillStyle=C.grass2;ctx.fillRect(x+4,y+6,3,3);ctx.fillRect(x+TS-8,y+4,3,3);}
+  if(t===4){ctx.fillStyle=C.water2;ctx.fillRect(x,y+12+Math.sin(animT*0.05+tx)*2|0,TS,2);}
+  if(t===0){ctx.fillStyle=C.wallTop;ctx.fillRect(x,y,TS,5);}
+  if(t===3){ctx.fillStyle='rgba(255,255,255,0.04)';ctx.fillRect(x+2,y+TS/2-1,TS-4,2);}
+}
+
+// ── OBJECT DRAW ──
+function drawObject(o){
+  const x=o.tx*TS,y=o.ty*TS;
+  const near=players.some(p=>{ const dx=p.x-(x+TS/2),dy=p.y-(y+TS/2); return Math.sqrt(dx*dx+dy*dy)<44; });
+  const done=found.has(o.id);
+  if(near&&!done){ ctx.fillStyle=o.color+'22'; ctx.fillRect(x-4,y-4,TS+8,TS+8); }
+
+  if(o.shape==='bench'){
+    ctx.fillStyle=done?'#554433':'#8b6340'; ctx.fillRect(x+2,y+10,TS-4,8);
+    ctx.fillStyle=done?'#443322':'#6b4a28'; ctx.fillRect(x+2,y+6,TS-4,5);
+    ctx.fillRect(x+2,y+18,4,6); ctx.fillRect(x+TS-6,y+18,4,6);
+  } else if(o.shape==='circle'){
+    ctx.beginPath(); ctx.arc(x+TS/2,y+TS/2,10,0,Math.PI*2);
+    ctx.fillStyle=done?'#333':o.color; ctx.fill();
+    ctx.fillStyle=C.dark; ctx.beginPath(); ctx.arc(x+TS/2,y+TS/2,5,0,Math.PI*2); ctx.fill();
+  } else if(o.shape==='square'){
+    ctx.fillStyle=done?'#333':C.blue+'99'; ctx.fillRect(x+4,y+4,TS-8,TS-8);
+    ctx.strokeStyle=done?'#555':C.blue; ctx.lineWidth=2; ctx.strokeRect(x+4,y+4,TS-8,TS-8);
+    if(!done){ctx.fillStyle='rgba(160,196,232,0.2)';ctx.fillRect(x+6,y+6,6,6);}
+  } else if(o.shape==='fire'){
+    if(!done){
+      const f=Math.sin(animT*0.2)*2|0;
+      ctx.fillStyle='#e87070';ctx.fillRect(x+8,y+12+f,6,10);
+      ctx.fillStyle='#f7a040';ctx.fillRect(x+10,y+8+f,4,8);
+      ctx.fillStyle='#f7d488';ctx.fillRect(x+12,y+10+f,2,5);
+    } else {ctx.fillStyle='#444';ctx.fillRect(x+6,y+14,TS-12,8);}
+    ctx.fillStyle='#5a3a1a';ctx.fillRect(x+4,y+22,TS-8,6);
+  } else if(o.shape==='star'){
+    ctx.beginPath();
+    for(let i=0;i<10;i++){
+      const a=Math.PI/5*i-Math.PI/2+(done?0:animT*0.01);
+      const r=i%2===0?11:5;
+      i===0?ctx.moveTo(x+TS/2+Math.cos(a)*r,y+TS/2+Math.sin(a)*r):ctx.lineTo(x+TS/2+Math.cos(a)*r,y+TS/2+Math.sin(a)*r);
+    }
+    ctx.closePath(); ctx.fillStyle=done?'#333':o.color; ctx.fill();
+  }
+
+  ctx.textAlign='center';
+  if(near&&!done){ctx.fillStyle=C.accent;ctx.font='8px monospace';ctx.fillText('[F or L]',x+TS/2,y-4);}
+  if(done){ctx.fillStyle=C.green;ctx.font='10px monospace';ctx.fillText('✓',x+TS/2,y-3);}
+  ctx.textAlign='left';
+}
+
+// ── PLAYER DRAW ──
+function drawPlayer(p,idx2){
+  const x=Math.round(p.x-p.w/2), y=Math.round(p.y-p.h/2);
+  const moving=Math.abs(p.vx)+Math.abs(p.vy)>0;
+  const bob=moving?(Math.sin(animT*0.3)*1.5|0):0;
+  const isGirl=idx2===1;
+
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)';
+  ctx.beginPath();ctx.ellipse(p.x,p.y+p.h/2+1,6,3,0,0,Math.PI*2);ctx.fill();
+
+  // body
+  ctx.fillStyle=p.color; ctx.fillRect(x+3,y+2+bob,8,9);
+  // shirt
+  ctx.fillStyle=p.shirtColor; ctx.fillRect(x+2,y+7+bob,10,5);
+  // pants / skirt
+  if(isGirl){
+    ctx.fillStyle='#7a4a6a'; ctx.fillRect(x+2,y+11+bob,10,5);
+  } else {
+    ctx.fillStyle='#4a4a7a'; ctx.fillRect(x+2,y+11+bob,4,4); ctx.fillRect(x+8,y+11+bob,4,4);
+  }
+  // hair
+  ctx.fillStyle=p.hairColor; ctx.fillRect(x+3,y+bob,8,4);
+  if(isGirl){ ctx.fillRect(x+1,y+bob,3,7); ctx.fillRect(x+TS-7,y+bob,3,7); }
+  // eyes
+  ctx.fillStyle=C.dark;
+  ctx.fillRect(x+4,y+5+bob,2,2); ctx.fillRect(x+8,y+5+bob,2,2);
+
+  // label
+  ctx.fillStyle=p.color; ctx.font='8px monospace'; ctx.textAlign='center';
+  ctx.fillText(p.label,p.x,y-3+bob);
+  ctx.textAlign='left';
+}
+
+function draw(){
+  ctx.clearRect(0,0,640,480);
+  for(let ty=0;ty<TH;ty++) for(let tx=0;tx<TW;tx++) drawTile(tx,ty,MAP[ty][tx]);
+  [...OBJECTS].sort((a,b)=>a.ty-b.ty).forEach(drawObject);
+  // draw players sorted by y so front player renders on top
+  [...players].sort((a,b)=>a.y-b.y).forEach((p,i)=>drawPlayer(p,players.indexOf(p)));
+
+  if(found.size===5){
+    ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,640,28);
+    ctx.fillStyle=C.accent; ctx.font='10px monospace'; ctx.textAlign='center';
+    ctx.fillText('✦  all memories found — press J to read the journal  ✦',320,17);
+    ctx.textAlign='left';
+  }
+}
+
+// ── UPDATE ──
+function update(){
+  animT++;
+  if(dlgActive||journalOpen) return;
+
+  // P1 — WASD
+  let dx1=0,dy1=0;
+  if(keys['a']||keys['A']){dx1=-players[0].speed;players[0].dir=2;}
+  if(keys['d']||keys['D']){dx1= players[0].speed;players[0].dir=1;}
+  if(keys['w']||keys['W']){dy1=-players[0].speed;players[0].dir=0;}
+  if(keys['s']||keys['S']){dy1= players[0].speed;players[0].dir=3;}
+  players[0].vx=dx1; players[0].vy=dy1;
+  if(dx1&&dy1){dx1*=0.707;dy1*=0.707;}
+  if(canWalk(players[0].x+dx1,players[0].y)) players[0].x+=dx1;
+  if(canWalk(players[0].x,players[0].y+dy1)) players[0].y+=dy1;
+
+  // P2 — arrows
+  let dx2=0,dy2=0;
+  if(keys['ArrowLeft']){dx2=-players[1].speed;players[1].dir=2;}
+  if(keys['ArrowRight']){dx2= players[1].speed;players[1].dir=1;}
+  if(keys['ArrowUp']){dy2=-players[1].speed;players[1].dir=0;}
+  if(keys['ArrowDown']){dy2= players[1].speed;players[1].dir=3;}
+  players[1].vx=dx2; players[1].vy=dy2;
+  if(dx2&&dy2){dx2*=0.707;dy2*=0.707;}
+  if(canWalk(players[1].x+dx2,players[1].y)) players[1].x+=dx2;
+  if(canWalk(players[1].x,players[1].y+dy2)) players[1].y+=dy2;
+
+  // typing animation
+  if(dlgTyping){
+    dlgTimer++;
+    if(dlgTimer%2===0&&dlgTyped.length<dlgFull.length){
+      dlgTyped=dlgFull.slice(0,dlgTyped.length+1);
+      document.getElementById('dlg-text').textContent=dlgTyped;
+      if(dlgTyped.length===dlgFull.length){
+        dlgTyping=false;
+        document.getElementById('dlg-next').style.display='block';
+      }
+    }
+  }
+}
+
+// ── INPUT ──
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if(!dlgActive&&!journalOpen){
+    // P1 interact — F
+    if(e.key==='f'||e.key==='F'){
+      const o=getNearObj(players[0]);
+      if(o) startDialogue(o);
+    }
+    // P2 interact — L
+    if(e.key==='l'||e.key==='L'){
+      const o=getNearObj(players[1]);
+      if(o) startDialogue(o);
+    }
+  } else if(dlgActive){
+    if(e.key==='f'||e.key==='F'||e.key==='l'||e.key==='L') advanceDlg();
+  }
+  if((e.key==='j'||e.key==='J')&&!dlgActive) toggleJournal();
+  if(e.key==='Escape'&&journalOpen) toggleJournal();
+});
+document.addEventListener('keyup',e=>{ keys[e.key]=false; });
+
+document.getElementById('journal-close').onclick=toggleJournal;
+document.getElementById('start-btn').onclick=()=>{
+  document.getElementById('titlescreen').style.display='none';
+};
+
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+loop();
+</script>
