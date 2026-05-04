@@ -1,0 +1,1391 @@
+﻿<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#08060ef3;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;font-family:monospace;}
+#wrap{position:relative;width:640px;height:480px;image-rendering:pixelated;}
+canvas{display:block;image-rendering:pixelated;}
+#ui{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;}
+#hud{position:absolute;top:8px;left:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+#title-hud{background:rgba(0,0,0,0.7);color:#f7d488;font-size:10px;padding:4px 10px;border:1px solid #f7d488;letter-spacing:2px;}
+#mem-count{background:rgba(0,0,0,0.7);color:#a8d8a8;font-size:10px;padding:4px 8px;border:1px solid #a8d8a8;}
+#scene-hud{background:rgba(0,0,0,0.7);color:#f0c080;font-size:10px;padding:4px 8px;border:1px solid #f0c080;}
+#hint{position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,0.55);color:#777;font-size:9px;padding:4px 8px;}
+#dialogue{position:absolute;bottom:12px;left:12px;right:12px;background:rgba(8,6,14,0.97);border:2px solid #f7d488;padding:12px 14px 10px;display:none;pointer-events:auto;}
+#dlg-name{font-size:10px;letter-spacing:2px;margin-bottom:5px;text-transform:uppercase;}
+#dlg-text{color:#f0ece4;font-size:11px;line-height:1.75;min-height:32px;}
+#dlg-next{color:#8a774e;font-size:9px;text-align:right;margin-top:6px;animation:blink 1s step-start infinite;}
+@keyframes blink{50%{opacity:0;}}
+#journal{position:absolute;top:0;left:0;width:100%;height:100%;background:#08060ef7;border:2px solid #a8d8a8;padding:20px;display:none;pointer-events:auto;overflow-y:auto;z-index:15;}
+#journal h2{color:#a8d8a8;font-size:11px;letter-spacing:3px;margin-bottom:14px;text-transform:uppercase;border-bottom:1px solid rgba(168,216,168,0.2);padding-bottom:8px;}
+.j-entry{color:#f0ece4;font-size:10px;line-height:1.9;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+.j-entry.locked{color:#3a3a4a;font-style:italic;}
+#journal-close{color:#f7d488;font-size:9px;margin-top:16px;cursor:pointer;display:block;letter-spacing:1px;text-align:right;}
+#titlescreen{position:absolute;top:0;left:0;width:100%;height:100%;background:#0d0810;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:auto;z-index:20;}
+#titlescreen h1{color:#f7d488;font-size:20px;letter-spacing:5px;margin-bottom:4px;}
+#titlescreen .sub{color:#f0c080;font-size:9px;letter-spacing:3px;margin-bottom:4px;}
+#titlescreen .sub2{color:#666;font-size:9px;letter-spacing:2px;margin-bottom:24px;}
+.ctrl-box{display:flex;gap:28px;margin:0 0 22px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);padding:12px 22px;}
+.ctrl-col{font-size:9px;line-height:2.1;letter-spacing:1px;}
+#start-btn{background:none;border:2px solid #f7d488;color:#f7d488;font-family:monospace;font-size:11px;padding:10px 32px;cursor:pointer;letter-spacing:3px;transition:all 0.2s;}
+#start-btn:hover{background:#f7d488;color:#0d0810;}
+#ending{position:absolute;top:0;left:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;flex-direction:column;pointer-events:none;z-index:12;background:rgba(8,6,14,0);transition:background 1.8s ease;}
+#ending-text{color:#f0ece4;font-size:13px;letter-spacing:3px;text-align:center;line-height:2.4;opacity:0;transition:opacity 2.5s ease;}
+#ending-sub{color:#f7d488;font-size:9px;letter-spacing:2px;text-align:center;opacity:0;transition:opacity 1s ease;margin-top:8px;}
+#ending-journal{color:#a8d8a8;font-size:9px;letter-spacing:2px;margin-top:18px;opacity:0;transition:opacity 1s ease;cursor:pointer;pointer-events:auto;}
+</style>
+
+<div id="wrap">
+  <canvas id="game" width="640" height="480"></canvas>
+  <div id="ui">
+    <div id="hud">
+      <div id="title-hud">OUR LITTLE WORLD</div>
+      <div id="scene-hud">台北 TAIPEI</div>
+      <div id="mem-count">✦ 0 / 5</div>
+    </div>
+    <div id="hint">WASD · ARROWS · SPACE interact · J journal</div>
+    <div id="dialogue">
+      <div id="dlg-name"></div>
+      <div id="dlg-text"></div>
+      <div id="dlg-next">▼ space</div>
+    </div>
+    <div id="journal">
+      <h2>✦ Taipei Memories</h2>
+      <div id="journal-entries"></div>
+      <span id="journal-close">[ close — J ]</span>
+    </div>
+    <div id="titlescreen">
+      <h1>OUR LITTLE WORLD</h1>
+      <div class="sub">chapter 1: 台北</div>
+      <div class="sub2"></div>
+      <div class="sub2"></div>
+      <div class="ctrl-box">
+        <div class="ctrl-col">
+          <span style="color:#9fcfee;letter-spacing:2px;">▶ BOY P1</span><br>
+          <span style="color:#666;">Move</span> <span style="color:#f0ece4;">WASD</span><br>
+          <span style="color:#666;">Interact</span> <span style="color:#f0ece4;">SPACE</span>
+        </div>
+        <div class="ctrl-col">
+          <span style="color:#c4a0e8;letter-spacing:2px;">▶ GIRL P2</span><br>
+          <span style="color:#666;">Move</span> <span style="color:#f0ece4;">ARROWS</span><br>
+          <span style="color:#666;">Interact</span> <span style="color:#f0ece4;">SPACE</span>
+        </div>
+      </div>
+      <button id="start-btn">▶ PLAY</button>
+    </div>
+    <div id="ending">
+      <div id="ending-text"></div>
+      <div id="ending-sub"></div>
+      <div id="ending-journal">[ J — read your memories ]</div>
+    </div>
+  </div>
+</div>
+<div style="color:#2a2a2a;font-size:10px;margin-top:8px;font-family:monospace;">WASD · ARROWS · SPACE · J</div>
+
+<script>
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+const TS=32,TW=20,TH=16;
+
+// 0=void 1=asphalt-sidewalk 2=road 3=grass 4=water 5=dirt/puddle 6=brick-path
+const MAP=[
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,2,1,1,2,1,1,1,1,1,1,1,1,2,2,3,3,3,3,0],
+  [0,2,1,1,2,1,1,1,1,1,1,1,1,2,2,3,3,3,3,0],
+  [0,2,5,1,2,1,1,5,1,1,1,1,1,2,2,3,3,3,3,0],
+  [0,2,1,1,2,1,1,1,1,3,3,3,3,2,2,3,3,3,3,0],
+  [0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0],
+  [0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0],
+  [0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0],
+  [0,1,1,1,2,1,1,1,1,1,1,1,1,2,2,1,1,1,1,0],
+  [0,1,1,1,2,1,1,1,1,1,1,1,1,2,2,1,1,1,1,0],
+  [0,1,1,1,2,1,1,1,1,1,1,1,1,2,2,1,1,1,1,0],
+  [0,1,1,5,2,1,1,1,1,1,1,1,1,2,2,2,2,2,2,0],
+  [0,3,3,3,2,3,3,3,3,3,3,3,3,3,3,2,2,3,3,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+
+const OBJECTS=[
+  {id:'seven', tx:2, ty:2, label:'7-Eleven',            mem:0, color:'#22cc22', W:3,H:2},
+  {id:'mrt',   tx:6, ty:2, label:'MRT Station',         mem:1, color:'#e83838', W:3,H:2},
+  {id:'market',tx:1, ty:10,label:'Night Market',        mem:2, color:'#f0a030', W:4,H:2},
+  {id:'park',  tx:14,ty:2, label:'Riverside Park',      mem:3, color:'#44cc66', W:5,H:4},
+  {id:'noodle',tx:9, ty:10,label:'大塊牛肉麵',           mem:4, color:'#e05030', W:4,H:2},
+];
+
+const MEMORIES=[
+  {name:'7-Eleven, 10pm',       text:"Grabbing taiwanese sausages, sesame cold noodles, and an aiyu drink. Perusing the snack aisles and picking up a soda stick from the ice cream cooler. Ripping open the hot steaming packet of sausages and burning our mouths because we couldn't wait.",           color:'#22cc22'},
+  {name:'MRT Blue Line',           text:"Hopping around the city on the metro, roaming the Zhongshan streets, eating comfort food then ending the day with the expressway drive home (in the Golf).",                              color:'#e83838'},
+  {name:'Ningxia Night Market',  text:"A crowded but delicious time at the night markets. The smell of sizzling sausages and skewers. The tight single file lines down the stalls. Stuffing ourselves with sweet potato balls, scallion pancakes, and mochi shaved ice.",               color:'#f0a030'},
+  {name:'The Field on Jinhua Street',        text:"Evening walks around the neighborhood. Skating around and setting up impromptu photoshoots at whatever field or building we could find.",     color:'#44cc66'},
+  {name:'大塊牛肉麵',            text:"A religious Saturday beef noodle routine. Picking up a kumquat fruit tea after. Or a tomato slushie from Da Yuan Zi. ",color:'#e05030'},
+];
+
+// MRT station names cycling
+const mrtStations=[
+  {zh:'台北市政府', en:'Taipei City Hall'},
+  {zh:'崑陽',      en:'Kunyang'},
+  {zh:'台北車站',  en:'Taipei Main Station'},
+  {zh:'中正紀念堂',en:'CKS Memorial Hall'},
+];
+
+let sceneState=0,fadeTrans=0;
+
+let animT=0,found=new Set(),keys={};
+let dlgActive=false,dlgObj=null,dlgTyping=false,dlgTyped='',dlgFull='',dlgTimer=0;
+let journalOpen=false;
+let endingState=0,endingTimer=0,hearts=[];
+
+const players=[
+  {x:3*TS+8,y:6*TS+8,w:16,h:20,speed:1.5,vx:0,vy:0,label:'P1',
+   hair:'#151010',shirt:'#87ceeb',pants:'#4a6a9a',skin:'#f5c8a0',isGirl:false},
+  {x:5*TS+8,y:6*TS+8,w:16,h:20,speed:1.5,vx:0,vy:0,label:'P2',
+   hair:'#7a2808',shirt:'#f0ece4',pants:'#6a4020',skin:'#f5c8a0',isGirl:true},
+];
+
+function canWalk(nx,ny){
+  const m=7;
+  for(let[cx,cy]of[[nx-m,ny-m],[nx+m,ny-m],[nx-m,ny+m],[nx+m,ny+m]]){
+    const tx=Math.floor(cx/TS),ty=Math.floor(cy/TS);
+    if(tx<0||ty<0||tx>=TW||ty>=TH||MAP[ty][tx]===0)return false;
+  }
+  return true;
+}
+
+function getNear(){
+  for(let o of OBJECTS){
+    const ox=(o.tx+o.W/2)*TS,oy=(o.ty+o.H/2)*TS;
+    const d0=Math.hypot(players[0].x-ox,players[0].y-oy);
+    const d1=Math.hypot(players[1].x-ox,players[1].y-oy);
+    if(d0<58&&d1<58) return{obj:o};
+  }
+  return{obj:null};
+}
+
+function startDlg(o){
+  dlgObj=o;dlgActive=true;
+  const m=MEMORIES[o.mem];
+  const n=document.getElementById('dlg-name');
+  n.textContent=m.name;
+  n.style.color=m.color;
+  dlgFull=m.text;dlgTyped='';dlgTyping=true;dlgTimer=0;
+  document.getElementById('dialogue').style.display='block';
+  document.getElementById('dlg-text').textContent='';
+  document.getElementById('dlg-next').style.display='none';
+}
+
+function advanceDlg(){
+  if(dlgTyping){dlgTyped=dlgFull;dlgTyping=false;
+    document.getElementById('dlg-text').textContent=dlgFull;
+    document.getElementById('dlg-next').style.display='block';return;}
+  found.add(dlgObj.id);
+  document.getElementById('mem-count').textContent=`✦ ${found.size} / 5`;
+  document.getElementById('dialogue').style.display='none';
+  dlgActive=false;dlgObj=null;
+  if(found.size===5)triggerEnding();
+}
+
+function triggerEnding(){endingState=1;endingTimer=0;}
+
+function spawnHearts(x,y){
+  for(let i=0;i<22;i++){
+    const a=Math.random()*Math.PI*2,s=0.8+Math.random()*2.2;
+    hearts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-2.5,life:1,
+      size:6+Math.random()*8,
+      color:['#ff6b8a','#ffb3c6','#f7d488','#ff8fab','#ffd6e0','#ffacc7'][Math.floor(Math.random()*6)]});
+  }
+}
+
+function toggleJournal(){
+  journalOpen=!journalOpen;
+  document.getElementById('journal').style.display=journalOpen?'block':'none';
+  if(journalOpen){
+    const el=document.getElementById('journal-entries');el.innerHTML='';
+    MEMORIES.forEach((m,i)=>{
+      const d=document.createElement('div');
+      if(found.has(OBJECTS[i].id)){
+        d.className='j-entry';
+        d.innerHTML=`<span style="color:${m.color};font-size:9px;letter-spacing:1px;">✦ ${m.name}</span><br>${m.text}`;
+      }else{d.className='j-entry locked';d.textContent='[ somewhere in 台北... ]';}
+      el.appendChild(d);
+    });
+  }
+}
+
+// ── STREET TREES & VEGETATION ──
+function drawStreetTrees(){
+  // Street trees at strategic positions along sidewalks (rows 5 and 9), avoiding alleyways at columns 4, 13-14
+  const treePositions=[
+    {tx:2,ty:5},{tx:6,ty:5},{tx:10,ty:5},{tx:12,ty:5},{tx:16,ty:5},
+    {tx:2,ty:9},{tx:6,ty:9},{tx:10,ty:9},{tx:12,ty:9},{tx:16,ty:9},
+    {tx:1,ty:2},{tx:1,ty:11},{tx:18,ty:13}
+  ];
+
+  for(let tp of treePositions){
+    const tx=tp.tx*TS+TS/2,ty=tp.ty*TS;
+    // Ground shadow
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.beginPath();ctx.ellipse(tx,ty+TS,12,4,0,0,Math.PI*2);ctx.fill();
+    // Trunk
+    ctx.fillStyle='#45230d';ctx.fillRect(tx-2,ty-30,4,44);
+    // Crown layers (bottom to top)
+    ctx.fillStyle='#1e4a18';
+    ctx.beginPath();ctx.arc(tx,ty-18,11,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#2e5a20';
+    ctx.beginPath();ctx.arc(tx-2,ty-20,9,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#3a6a28';
+    ctx.beginPath();ctx.arc(tx-3,ty-23,6,0,Math.PI*2);ctx.fill();
+    // Highlight
+    ctx.fillStyle='#4a7a30';
+    ctx.fillRect(tx-4,ty-25,3,3);ctx.fillRect(tx+1,ty-21,2,2);
+  }
+
+  // Potted plants near buildings (avoiding alleyways)
+  const pots=[
+    {x:3*TS-6,y:4*TS+8},{x:7*TS+4,y:4*TS+10},{x:11*TS+TS-8,y:12*TS+6}
+  ];
+  for(let p of pots){
+    // Terra cotta pot
+    ctx.fillStyle='#b86040';
+    ctx.fillRect(p.x,p.y+2,8,10);
+    ctx.fillRect(p.x-1,p.y+10,10,2);
+    // Green plant
+    ctx.fillStyle='#3a7a30';
+    ctx.beginPath();ctx.arc(p.x+4,p.y+2,5,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#4a8a40';
+    ctx.fillRect(p.x+2,p.y-2,2,2);ctx.fillRect(p.x+5,p.y,2,2);
+  }
+
+  // Bush clusters in grass areas (rows with grass tiles)
+  const bushes=[
+    {x:2*TS+4,y:2*TS+8},{x:3*TS+2,y:3*TS+4},{x:1*TS+6,y:11*TS+10},
+    {x:16*TS+8,y:2*TS+12},{x:18*TS+4,y:13*TS+8}
+  ];
+  for(let b of bushes){
+    ctx.fillStyle='#1a3a12';
+    ctx.fillRect(b.x,b.y+3,10,6);
+    ctx.fillStyle='#2e5a20';
+    ctx.beginPath();ctx.arc(b.x+5,b.y+2,5,0,Math.PI*2);ctx.fill();
+  }
+
+  // More bushes and grass patches on bottom sidewalks (rows 9-13)
+  const bottomBushes=[
+    {x:1*TS+4,y:9*TS+4},{x:3*TS+8,y:9*TS+8},{x:7*TS+6,y:10*TS+6},
+    {x:11*TS+4,y:10*TS+4},{x:2*TS+6,y:11*TS+8},{x:6*TS+4,y:11*TS+4},
+    {x:1*TS+8,y:12*TS+6},{x:3*TS+4,y:12*TS+10},{x:7*TS+8,y:12*TS+4},
+    {x:11*TS+6,y:12*TS+8},{x:2*TS+4,y:13*TS+6},{x:6*TS+8,y:13*TS+4},
+    {x:10*TS+4,y:13*TS+8}
+  ];
+  for(let b of bottomBushes){
+    ctx.fillStyle='#1a3a12';
+    ctx.fillRect(b.x,b.y+2,8,4);
+    ctx.fillStyle='#2e5a20';
+    ctx.beginPath();ctx.arc(b.x+4,b.y+1,4,0,Math.PI*2);ctx.fill();
+    // Add some grass blades
+    ctx.fillStyle='#3a6a28';
+    ctx.fillRect(b.x+1,b.y+3,2,2);
+    ctx.fillRect(b.x+5,b.y+3,2,2);
+  }
+
+  // Streetlights along main road (rows 4 and 8 sidewalks)
+  const streetlights=[
+    {tx:3,ty:5},{tx:7,ty:5},{tx:11,ty:5},{tx:15,ty:5},{tx:17,ty:5},
+    {tx:3,ty:9},{tx:7,ty:9},{tx:11,ty:9},{tx:15,ty:9},{tx:17,ty:9}
+  ];
+  for(let light of streetlights){
+    const lx=light.tx*TS+TS/2,ly=light.ty*TS;
+    // Pole
+    ctx.fillStyle='#2a2a2a';ctx.fillRect(lx-1,ly+4,2,24);
+    // Light fixture — horizontal arm
+    ctx.fillStyle='#2a2a2a';ctx.fillRect(lx-6,ly+4,6,2);
+    // Light bulb/lamp
+    ctx.fillStyle='#e8d080';
+    ctx.beginPath();ctx.arc(lx-6,ly+6,3,0,Math.PI*2);ctx.fill();
+    // Light glow
+    ctx.fillStyle='rgba(255,220,120,0.2)';
+    ctx.beginPath();ctx.arc(lx-6,ly+6,8,0,Math.PI*2);ctx.fill();
+
+    // Pedestrian crossing sign for lampposts at crosswalk (tx:7)
+    if(light.tx===7){
+      // Cycle between red (15s) and green (15s) - 30 second total cycle
+      const cycleTime = 1800; // 30 seconds at 60fps
+      const halfCycle = 900;  // 15 seconds
+      const phase = animT % cycleTime;
+      const isGreen = phase >= halfCycle;
+
+      // Sign background - cycles between red and green
+      ctx.fillStyle = isGreen ? '#1a8a1a' : '#cc2020';
+      ctx.fillRect(lx-8,ly+12,10,10);
+      // White border
+      ctx.strokeStyle='#e0e0e0';
+      ctx.lineWidth=1;
+      ctx.strokeRect(lx-8,ly+12,10,10);
+
+      if(isGreen){
+        // Green phase: show pedestrian symbol
+        ctx.fillStyle='#fff';
+        // Head
+        ctx.beginPath();ctx.arc(lx-3,ly+14.5,1.5,0,Math.PI*2);ctx.fill();
+        // Body
+        ctx.fillRect(lx-3.5,ly+16,1,3);
+        // Legs
+        ctx.fillRect(lx-4.5,ly+18.5,1,2);
+        ctx.fillRect(lx-2.5,ly+18.5,1,2);
+
+        // Countdown timer (15, 14, 13... 1)
+        const timeLeft = Math.ceil((cycleTime - phase) / 60);
+        ctx.fillStyle='#fff';
+        ctx.font='bold 5px monospace';
+        ctx.textAlign='center';
+        ctx.fillText(timeLeft, lx-3, ly+20);
+      } else {
+        // Red phase: show hand/stop symbol
+        ctx.fillStyle='#fff';
+        // Palm
+        ctx.fillRect(lx-4.5,ly+15,3,4);
+        // Fingers
+        ctx.fillRect(lx-4.5,ly+14,3,1);
+        ctx.fillRect(lx-3.5,ly+13,1,1);
+        // Wrist
+        ctx.fillRect(lx-3.5,ly+19,1,2);
+      }
+      ctx.textAlign='left';
+    }
+  }
+}
+
+// ── LIGHT SPILL ON PAVEMENT ──
+function drawLightSpill(){
+  // 7-Eleven — cold white-blue, 3 tiles wide in front
+  ctx.fillStyle='rgba(180,220,255,0.09)';
+  ctx.fillRect(2*TS,4*TS,3*TS,TS*2);
+
+  // MRT — fluorescent cold white
+  ctx.fillStyle='rgba(200,215,255,0.08)';
+  ctx.fillRect(6*TS,4*TS,3*TS,TS*2);
+
+  // Night market — warm red-orange, full width of stalls
+  ctx.fillStyle='rgba(220,90,20,0.10)';
+  ctx.fillRect(1*TS,12*TS,4*TS,TS);
+
+  // Beef noodle — warm amber
+  ctx.fillStyle='rgba(255,150,50,0.10)';
+  ctx.fillRect(9*TS,12*TS,4*TS,TS);
+
+  // Park lamp post — small amber circle
+  ctx.fillStyle='rgba(255,170,50,0.12)';
+  ctx.beginPath();
+  ctx.arc(16*TS,5*TS+16,32,0,Math.PI*2);
+  ctx.fill();
+}
+
+// ── CROSSWALK (pedestrian crossing in front of MRT) ──
+function drawCrosswalk(){
+  // Crosswalk 1: in front of MRT station (columns 6-7, across road rows 6-8)
+  const crosswalkX = 6*TS;
+  const crosswalkY = 6*TS;
+  const crosswalkWidth = 2*TS;  // 2 tiles wide
+  const crosswalkHeight = 3*TS; // Road is 3 tiles tall
+
+  // Draw white horizontal stripes (zebra crossing) - subtle with transparency
+  ctx.fillStyle='rgba(240,240,235,0.65)';
+  const stripeHeight = 6;
+  const gapHeight = 8;
+  const totalStripeUnit = stripeHeight + gapHeight;
+
+  for(let y = crosswalkY; y < crosswalkY + crosswalkHeight; y += totalStripeUnit){
+    ctx.fillRect(crosswalkX, y, crosswalkWidth, stripeHeight);
+  }
+
+  // Crosswalk 2: smaller crosswalk at columns 13-14, row 9 (vertical stripes)
+  const cw2X = 13*TS;
+  const cw2Y = 9*TS;
+  const cw2Width = 2*TS;  // 2 tiles wide
+  const cw2Height = TS;    // 1 tile tall
+
+  // Draw white vertical stripes
+  ctx.fillStyle='rgba(240,240,235,0.65)';
+  const stripeWidth = 6;
+  const gapWidth = 8;
+  const totalVertUnit = stripeWidth + gapWidth;
+
+  for(let x = cw2X; x < cw2X + cw2Width; x += totalVertUnit){
+    ctx.fillRect(x, cw2Y, stripeWidth, cw2Height);
+  }
+}
+
+// ── SKY ──
+function drawSky(){
+  // Blue hour gradient
+  const g=ctx.createLinearGradient(0,0,0,240);
+  g.addColorStop(0,'#161e38');
+  g.addColorStop(0.3,'#5e3030');
+  // g.addColorStop(0.3,'#362840');
+  g.addColorStop(0.65,'#5e3030');
+  g.addColorStop(1,'#7a4018');
+  ctx.fillStyle=g;ctx.fillRect(0,0,640,480);
+
+  // Stars — 20-25 tiny twinkling dots
+  for(let i=0;i<23;i++){
+    const sx=(i*147)%620+10,sy=(i*71)%90+8;
+    const twinkle=0.4+0.5*Math.sin(animT*0.05+i*0.7);
+    ctx.fillStyle=`rgba(255,255,255,${twinkle})`;
+    const size=i%5===0?2:1;
+    ctx.fillRect(sx,sy,size,size);
+  }
+
+  // Power lines
+  ctx.strokeStyle='rgba(15,10,8,0.95)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(0,20);ctx.lineTo(640,20);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(0,28);ctx.lineTo(640,28);ctx.stroke();
+
+  // Birds perched on power lines
+  const birdPos=[120,280,450];
+  for(let bx of birdPos){
+    const by=20;
+    ctx.fillStyle='#0a0604';
+    // Bird body
+    ctx.fillRect(bx,by-2,6,4);
+    // Head
+    ctx.fillRect(bx+1,by-4,4,3);
+    // Wings tucked
+    ctx.fillRect(bx-1,by,2,2);ctx.fillRect(bx+5,by,2,2);
+  }
+}
+
+// ── TILES ──
+function drawTile(tx,ty,t){
+  const x=tx*TS,y=ty*TS;
+  if(t===0){
+    // Row 0: show sky in middle (columns 1-18), draw black border on sides (columns 0,19)
+    if(ty===0){
+      if(tx===0||tx===19){ctx.fillStyle='#080610';ctx.fillRect(x,y,TS,TS);}
+      return;
+    }
+    // Row 1: show sky in middle (columns 1-18), draw black border on sides (columns 0,19)
+    if(ty===1){
+      if(tx===0){ctx.fillStyle='#080610';ctx.fillRect(x,y,TS,TS);}
+      if(tx===19){ctx.fillStyle='#080610';ctx.fillRect(x,y,TS,TS);}
+      return;
+    }
+    // Other rows: draw black border
+    ctx.fillStyle='#080610';ctx.fillRect(x,y,TS,TS);
+    return;
+  }
+  if(t===1){
+    // warm Taipei paving — checkerboard pattern
+    const alt=(tx+ty)%2===0;
+    ctx.fillStyle=alt?'#c2ae88':'#b89e7a';ctx.fillRect(x,y,TS,TS);
+    // grout lines
+    ctx.fillStyle='#a08a68';
+    ctx.fillRect(x,y,TS,1);ctx.fillRect(x,y,1,TS);
+    ctx.fillRect(x+TS-1,y,1,TS);ctx.fillRect(x,y+TS-1,TS,1);
+    // random details: weeds or cracks every 6th tile
+    if((tx*7+ty*13)%6===0){
+      const seed=(tx*11+ty*17)%3;
+      if(seed===0){ctx.fillStyle='#6a8a40';ctx.fillRect(x+4,y+TS-6,2,2);}
+      else{ctx.fillStyle='#987858';ctx.fillRect(x+TS-8,y+6,3,1);}
+    }
+    // warm amber tint near road (light spill)
+    if(ty===5||ty===9){ctx.fillStyle='rgba(255,150,40,0.06)';ctx.fillRect(x,y,TS,TS);}
+  }
+  if(t===2){
+    // very dark charcoal road
+    const darker=(tx+ty)%4===0;
+    ctx.fillStyle=darker?'#22202e':'#282636';ctx.fillRect(x,y,TS,TS);
+    // yellow center lane dashes — only on middle row (ty===7), every tile except crosswalk (columns 6-7)
+    if(ty===7 && tx!==6 && tx!==7){
+      ctx.fillStyle='#e8c030';ctx.fillRect(x+10,y+13,13,5);
+    }
+    // white edge lines
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    if(ty===6)ctx.fillRect(x,y,TS,1);
+    if(ty===8)ctx.fillRect(x,y+TS-1,TS,1);
+  }
+  if(t===3){
+    // darker park grass
+    ctx.fillStyle='#1e4a18';ctx.fillRect(x,y,TS,TS);
+    // dark patches
+    ctx.fillStyle='#183e12';
+    ctx.fillRect(x+2,y+2,6,6);ctx.fillRect(x+TS-10,y+TS-10,6,6);
+    // highlight dots
+    ctx.fillStyle='#44702d';
+    ctx.fillRect(x+TS-7,y+4,3,3);ctx.fillRect(x+5,y+TS-8,2,2);
+  }
+  if(t===4){
+    // richer blue water
+    ctx.fillStyle='#276468';ctx.fillRect(x,y,TS,TS);
+    // static shimmer bands
+    ctx.fillStyle='#1e4a72';
+    ctx.fillRect(x,y+8,TS,2);ctx.fillRect(x,y+18,TS,2);
+    // golden reflection
+    ctx.fillStyle='rgba(255,160,60,0.1)';ctx.fillRect(x,y+24,TS,4);
+  }
+  if(t===5){
+    // puddle on sidewalk base
+    const alt=(tx+ty)%2===0;
+    ctx.fillStyle=alt?'#c2ae88':'#b89e7a';ctx.fillRect(x,y,TS,TS);
+    // oval puddle
+    ctx.fillStyle='rgba(30,50,20,0.5)';
+    ctx.beginPath();ctx.ellipse(x+16,y+16,11,7,0,0,Math.PI*2);ctx.fill();
+    // warm highlight
+    ctx.fillStyle='rgba(212, 165, 150,0.2)';
+    ctx.beginPath();ctx.ellipse(x+16,y+14,6,3,0,0,Math.PI*2);ctx.fill();
+  }
+}
+
+
+// ── FILLER BUILDINGS ──
+function drawFillerBuildings(){
+  // North side filler buildings (avoiding alleyways at columns 4, 13-14) - dark to match border
+  const northFillers=[
+    {x:5*TS,y:2*TS,w:4*TS,h:2*TS,col:'#1a1a1a',type:'shop'},
+    {x:9*TS,y:2*TS,w:4*TS,h:2*TS,col:'#1a1a1a',type:'apartment'},
+  ];
+
+  // South side filler buildings (avoiding alleyways)
+  const southFillers=[
+    {x:5*TS,y:10*TS,w:4*TS,h:2*TS,col:'#7a4841',type:'shop'},
+    {x:15*TS,y:10*TS,w:3*TS,h:2*TS,col:'#7a4841',type:'residential'},
+  ];
+
+  const allFillers=[...northFillers,...southFillers];
+
+  for(let b of allFillers){
+    // Building base
+    ctx.fillStyle=b.col;ctx.fillRect(b.x,b.y,b.w,b.h);
+
+    // Windows in grid
+    for(let row=0;row<2;row++){
+      for(let col=0;col<Math.floor(b.w/16);col++){
+        const wx=b.x+4+col*16,wy=b.y+6+row*26;
+        const lit=(col+row)%2===0;
+
+        if(lit){
+          ctx.fillStyle='#f0c060';ctx.fillRect(wx,wy,10,12);
+          ctx.fillStyle='rgba(255,200,80,0.25)';ctx.fillRect(wx+1,wy+1,8,10);
+        }else{
+          ctx.fillStyle='#2a2830';ctx.fillRect(wx,wy,10,12);
+        }
+
+        // Window frame
+        ctx.strokeStyle='#1a1810';ctx.lineWidth=1;ctx.strokeRect(wx,wy,10,12);
+      }
+    }
+
+    // Door if shop type
+    if(b.type==='shop'){
+      const dx=b.x+b.w/2-8;
+      ctx.fillStyle='#773421';ctx.fillRect(dx,b.y+b.h-20,16,20);
+      ctx.strokeStyle='#300f0a';ctx.lineWidth=1;ctx.strokeRect(dx,b.y+b.h-20,16,20);
+      // Handle
+      ctx.fillStyle='#aa8840';ctx.fillRect(dx+10,b.y+b.h-12,3,4);
+    }
+
+    // Awning
+    ctx.fillStyle='rgba(80,60,40,0.6)';ctx.fillRect(b.x,b.y+b.h-22,b.w,4);
+
+    // AC units
+    for(let i=0;i<Math.floor(b.w/32);i++){
+      ctx.fillStyle='#606468';ctx.fillRect(b.x+8+i*32,b.y+30,8,4);
+    }
+  }
+}
+
+// ── 7-ELEVEN ──
+function draw7Eleven(x,y,W,H){
+  const w=W*TS,h=H*TS;
+
+  // Building base — cream/white
+  ctx.fillStyle='#e8e4dc';ctx.fillRect(x,y,w,h);
+
+  // Classic 7-Eleven stripe pattern — top third
+  ctx.fillStyle='#44702d';ctx.fillRect(x,y,w,10);
+  ctx.fillStyle='#ef3a0c';ctx.fillRect(x,y+10,w,4);
+  ctx.fillStyle='#efac28';ctx.fillRect(x,y+14,w,3);
+
+  // 7-ELEVEN logo text — larger and positioned better
+  ctx.fillStyle='#fff';ctx.font='bold 9px monospace';ctx.textAlign='center';
+  ctx.fillText('7-ELEVEN',x+w/2,y+9);
+
+  // Windows — 2 across top section
+  for(let i=0;i<2;i++){
+    const wx=x+8+i*40;
+    ctx.fillStyle='#3c9f9c';ctx.fillRect(wx,y+20,24,18);
+    ctx.strokeStyle='#183f39';ctx.lineWidth=1;ctx.strokeRect(wx,y+20,24,18);
+    // Reflection
+    ctx.fillStyle='rgba(255,255,255,0.4)';ctx.fillRect(wx+2,y+22,20,6);
+  }
+
+  // Glass door entrance — right side
+  ctx.fillStyle='#3c9f9c';ctx.fillRect(x+w-26,y+22,22,40);
+  ctx.strokeStyle='#183f39';ctx.lineWidth=2;ctx.strokeRect(x+w-26,y+22,22,40);
+  // Door handle
+  ctx.fillStyle='#606060';ctx.fillRect(x+w-10,y+40,3,6);
+  // Interior glow
+  ctx.fillStyle='rgba(200,220,255,0.3)';ctx.fillRect(x+w-24,y+24,18,36);
+
+  // Products visible in window
+  const prodC=['#ef692f','#efac28','#a58c27','#3c9f9c'];
+  for(let i=0;i<4;i++){
+    ctx.fillStyle=prodC[i];
+    ctx.fillRect(x+12+i*12,y+42,8,8);
+  }
+
+  // Awning — green with white stripe (at bottom of building)
+  ctx.fillStyle='#0e8010';ctx.fillRect(x,y+h-8,w,7);
+  ctx.fillStyle='#fff';ctx.fillRect(x,y+h-8,w,2);
+
+  // Outside: Vending machines / trash
+  ctx.fillStyle='#cc3030';ctx.fillRect(x-6,y+38,6,18);
+  ctx.fillStyle='#2a2a2a';ctx.fillRect(x-6,y+36,6,4);
+
+  ctx.textAlign='left';
+}
+
+// ── MRT ──
+function drawMRT(x,y,W,H){
+  const w=W*TS,h=H*TS;
+
+  // Grey concrete building
+  ctx.fillStyle='#bcad9f';ctx.fillRect(x,y,w,h);
+
+  // Red MRT band across top
+  ctx.fillStyle='#bb1818';ctx.fillRect(x,y,w,12);
+
+  // Large M circle logo
+  ctx.beginPath();ctx.arc(x+w/2,y+h/2-4,14,0,Math.PI*2);
+  ctx.fillStyle='#bb1818';ctx.fill();
+  ctx.fillStyle='#fff';ctx.font='bold 13px monospace';ctx.textAlign='center';
+  ctx.fillText('M',x+w/2,y+h/2+1);
+
+  // Station name sign
+  ctx.fillStyle='#050d18';ctx.fillRect(x+4,y+14,w-8,16);
+  const stn=mrtStations[Math.floor(animT/90)%4];
+  ctx.fillStyle='#44ee44';ctx.font='6px monospace';
+  ctx.fillText(stn.zh,x+w/2,y+22);
+  ctx.fillStyle='#22cc22';ctx.font='5px monospace';
+  ctx.fillText(stn.en,x+w/2,y+28);
+
+  // Entrance archway
+  ctx.fillStyle='#1a1a1a';ctx.fillRect(x+w/2-10,y+h-24,20,24);
+
+  // Stairs down (implied)
+  ctx.fillStyle='#87857c';
+  for(let s=0;s<3;s++){
+    ctx.fillRect(x+w/2-8,y+h-20+s*6,16,4);
+  }
+
+  // Yellow tactile line
+  ctx.fillStyle='#efac28';ctx.fillRect(x+w/2-12,y+h-24,24,2);
+
+  // Exit number signs
+  ctx.fillStyle='#1a6a1a';ctx.fillRect(x+2,y+h-14,8,10);
+  ctx.fillStyle='#fff';ctx.font='6px monospace';ctx.textAlign='center';
+  ctx.fillText('1',x+6,y+h-7);
+
+  ctx.textAlign='left';
+}
+
+// ── NIGHT MARKET ──
+function drawMarket(x,y,W,H){
+  const w=W*TS,h=H*TS;
+
+  const stalls=[
+    {zh:'蔥油餅',col:'#d86030',awn:'#aa1808'},
+    {zh:'蚵仔煎',col:'#c08850',awn:'#182050'},
+    {zh:'地瓜球',col:'#b08040',awn:'#b07010'},
+    {zh:'胡椒餅',col:'#986840',awn:'#145020'},
+  ];
+
+  const sw=w/4;
+  for(let i=0;i<4;i++){
+    const sx=x+i*sw,sy=y;
+
+    // Stall building base
+    ctx.fillStyle=stalls[i].col;ctx.fillRect(sx,sy,sw,h);
+
+    // Colored striped awning
+    ctx.fillStyle=stalls[i].awn;ctx.fillRect(sx,sy,sw,10);
+    ctx.fillStyle='rgba(255,255,255,0.15)';
+    for(let s=0;s<3;s++)ctx.fillRect(sx+s*8,sy,2,10);
+
+    // Storefront opening
+    ctx.fillStyle='#1a1008';ctx.fillRect(sx+2,sy+12,sw-4,h-16);
+
+    // Counter
+    ctx.fillStyle='#4a3828';ctx.fillRect(sx+2,sy+h-6,sw-4,6);
+
+    // Food items on counter
+    ctx.fillStyle='#e8c080';
+    for(let f=0;f<3;f++){
+      ctx.fillRect(sx+4+f*6,sy+h-10,4,4);
+    }
+
+    // Warm interior glow
+    ctx.fillStyle='rgba(255,150,60,0.2)';
+    ctx.fillRect(sx+3,sy+13,sw-6,h-20);
+
+    // Stall sign
+    ctx.fillStyle='#f7d488';ctx.font='bold 7px monospace';ctx.textAlign='center';
+    ctx.fillText(stalls[i].zh,sx+sw/2,sy+8);
+
+    // RED PAPER LANTERN above
+    const lx=sx+sw/2;
+    const ly=sy-20;
+    const flicker=0.9+0.1*Math.sin(animT*0.12+i);
+    ctx.globalAlpha=flicker;
+
+    // Lantern body
+    ctx.fillStyle='#cc1a08';
+    ctx.beginPath();ctx.ellipse(lx,ly,5,8,0,0,Math.PI*2);ctx.fill();
+
+    // Lantern cap
+    ctx.fillStyle='#881400';
+    ctx.beginPath();ctx.arc(lx,ly-9,3,0,Math.PI*2);ctx.fill();
+
+    // Ribs
+    ctx.strokeStyle='rgba(200,80,40,0.5)';ctx.lineWidth=0.5;
+    for(let r=-1;r<=1;r++){
+      ctx.beginPath();
+      ctx.moveTo(lx-5,ly+r*3);
+      ctx.lineTo(lx+5,ly+r*3);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha=1;
+
+    // Tassel
+    ctx.fillStyle='#aa1800';ctx.fillRect(lx-1,ly+8,2,6);
+  }
+
+  // String connecting lanterns
+  ctx.strokeStyle='rgba(50,25,8,0.😎';ctx.lineWidth=1;
+  ctx.beginPath();
+  for(let i=0;i<4;i++){
+    const lx=x+i*sw+sw/2;
+    if(i===0)ctx.moveTo(lx,y-29);
+    else ctx.lineTo(lx,y-29);
+  }
+  ctx.stroke();
+
+  // Red plastic Chinese stools on sidewalk below stalls - casually placed
+  const stools=[
+    {x:x+12, y:y+h+6},
+    {x:x+26, y:y+h+3},
+    {x:x+sw+18, y:y+h+5},
+    {x:x+sw*2+8, y:y+h+4},
+    {x:x+sw*3+22, y:y+h+7}
+  ];
+  for(let stool of stools){
+    const stoolX = stool.x;
+    const stoolY = stool.y;
+
+    // Stool top (round)
+    ctx.fillStyle='#cc2828';
+    ctx.beginPath();ctx.arc(stoolX,stoolY,6,0,Math.PI*2);ctx.fill();
+    // Highlight
+    ctx.fillStyle='#e84040';
+    ctx.beginPath();ctx.arc(stoolX-1,stoolY-1,3,0,Math.PI*2);ctx.fill();
+
+    // Stool legs (4 legs)
+    ctx.fillStyle='#a82020';
+    ctx.fillRect(stoolX-4,stoolY+4,2,8);
+    ctx.fillRect(stoolX+2,stoolY+4,2,8);
+    // Ground shadow
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    ctx.beginPath();ctx.ellipse(stoolX,stoolY+12,5,2,0,0,Math.PI*2);ctx.fill();
+  }
+
+  ctx.textAlign='left';
+}
+
+// ── BEEF NOODLE ──
+function drawNoodle(x,y,W,H){
+  const w=W*TS,h=H*TS;
+
+  // Warm brown/orange building
+  ctx.fillStyle='#b87850';ctx.fillRect(x,y,w,h);
+
+  // Dark wood trim
+  ctx.fillStyle='#4a2810';ctx.fillRect(x,y,w,8);
+  ctx.fillRect(x,y+h-4,w,4);
+
+  // Large storefront window
+  ctx.fillStyle='#1a1a1a';ctx.fillRect(x+4,y+12,w/2,h-18);
+  ctx.strokeStyle='#4a2810';ctx.lineWidth=2;ctx.strokeRect(x+4,y+12,w/2,h-18);
+
+  // Warm amber interior visible
+  ctx.fillStyle='rgba(255,150,50,0.3)';
+  ctx.fillRect(x+6,y+14,w/2-4,h-22);
+
+  // Tables/stools visible
+  ctx.fillStyle='#7a4820';
+  for(let t=0;t<2;t++){
+    ctx.fillRect(x+8+t*20,y+h-14,12,4);
+  }
+
+  // Bowl in window
+  const bx=x+16,by=y+26;
+  ctx.fillStyle='#e8f2f8';ctx.fillRect(bx,by,14,8);
+  ctx.fillStyle='#2255b0';ctx.fillRect(bx,by,14,3);
+  ctx.fillStyle='#d88040';ctx.fillRect(bx+2,by+4,10,4);
+
+  // Steam
+  for(let i=0;i<2;i++){
+    const sw=Math.sin(animT*0.07+i*1.5)*1|0;
+    ctx.fillStyle=`rgba(255,220,180,${0.4-i*0.15})`;
+    ctx.fillRect(bx+5+i*4+sw,by-4-i*4,2,4);
+  }
+
+  // Door — right side
+  ctx.fillStyle='#aa1a0a';ctx.fillRect(x+w-22,y+h-26,18,26);
+  ctx.strokeStyle='#4a2810';ctx.lineWidth=2;ctx.strokeRect(x+w-22,y+h-26,18,26);
+  // Handle
+  ctx.fillStyle='#cc8820';ctx.fillRect(x+w-10,y+h-14,3,5);
+
+  // Sign — Chinese characters
+  ctx.fillStyle='#f0c060';ctx.font='bold 8px monospace';ctx.textAlign='center';
+  ctx.fillText('大塊牛肉麵',x+w/2,y+6);
+  ctx.font='5px monospace';
+  ctx.fillText('BEEF NOODLE',x+w/2,y+h-28);
+
+  // Hanging menu board
+  ctx.fillStyle='#f0e4d0';ctx.fillRect(x+w-18,y+12,14,16);
+  ctx.strokeStyle='#4a2810';ctx.lineWidth=1;ctx.strokeRect(x+w-18,y+12,14,16);
+  ctx.fillStyle='#45230d';ctx.font='5px monospace';
+  ctx.fillText('¥80',x+w-11,y+20);
+
+  ctx.textAlign='left';
+}
+
+// ── PARK ──
+function drawPark(x,y,W,H){
+  const w=W*TS,h=H*TS;
+
+  // Park sits on grass tiles, so just add park features
+
+  // Cherry blossom tree 1
+  const tx=x+20,ty=y+40;
+  ctx.fillStyle='#2a1008';ctx.fillRect(tx-2,ty,4,20);
+  const puffs=[[tx-4,ty-8],[tx+4,ty-12],[tx+10,ty-8],[tx+2,ty-16],[tx+8,ty-15]];
+  for(let [px,py] of puffs){
+    ctx.fillStyle='#d890a8';ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#e8a8bc';ctx.beginPath();ctx.arc(px-1,py-2,4,0,Math.PI*2);ctx.fill();
+  }
+
+  // Cherry blossom tree 2
+  const t2x=x+w-30,t2y=y+35;
+  ctx.fillStyle='#2a1008';ctx.fillRect(t2x-2,t2y,4,22);
+  const puffs2=[[t2x-6,t2y-6],[t2x+2,t2y-14],[t2x+8,t2y-10],[t2x-2,t2y-18],[t2x+6,t2y-16]];
+  for(let [px,py] of puffs2){
+    ctx.fillStyle='#d890a8';ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#e8a8bc';ctx.beginPath();ctx.arc(px-1,py-2,4,0,Math.PI*2);ctx.fill();
+  }
+
+  // Regular tree (dark green)
+  const t3x=x+w/2+20,t3y=y+h-30;
+  ctx.fillStyle='#45230d';ctx.fillRect(t3x-2,t3y,4,18);
+  ctx.fillStyle='#1e4a18';ctx.beginPath();ctx.arc(t3x,t3y-4,10,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#2e5a20';ctx.beginPath();ctx.arc(t3x-2,t3y-6,7,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#3a6a28';ctx.beginPath();ctx.arc(t3x-1,t3y-8,5,0,Math.PI*2);ctx.fill();
+
+  // Regular tree 2
+  const t4x=x+w/2-25,t4y=y+20;
+  ctx.fillStyle='#45230d';ctx.fillRect(t4x-2,t4y,4,16);
+  ctx.fillStyle='#1e4a18';ctx.beginPath();ctx.arc(t4x,t4y-4,9,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#2e5a20';ctx.beginPath();ctx.arc(t4x-1,t4y-6,6,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#3a6a28';ctx.beginPath();ctx.arc(t4x-2,t4y-8,4,0,Math.PI*2);ctx.fill();
+
+  // Bushes
+  const bushes=[[x+8,y+12],[x+w-20,y+16],[x+10,y+h-16]];
+  for(let [bx,by] of bushes){
+    ctx.fillStyle='#1a3a12';ctx.fillRect(bx,by+3,10,5);
+    ctx.fillStyle='#2e5a20';
+    ctx.beginPath();ctx.arc(bx+5,by+2,5,0,Math.PI*2);ctx.fill();
+  }
+
+  // Lamp post
+  const lx=x+w/2+16,ly=y+h/2-8;
+  ctx.fillStyle='#3a2a10';ctx.fillRect(lx-1,ly,2,24);
+  ctx.fillStyle='#e8b840';ctx.fillRect(lx-4,ly,8,5);
+  ctx.fillStyle='rgba(255,180,60,0.25)';
+  ctx.beginPath();ctx.ellipse(lx,ly+2,10,6,0,0,Math.PI*2);ctx.fill();
+
+  // Bench
+  const bx=x+w/2-18,by=y+h/2+8;
+  ctx.fillStyle='#7a5a30';ctx.fillRect(bx,by,16,4);
+  ctx.fillStyle='#5a3a18';ctx.fillRect(bx,by-3,16,4);
+
+  // Flowers
+  for(let i=0;i<6;i++){
+    const fx=x+8+(i*20),fy=y+20+(i%3)*8;
+    ctx.fillStyle=['#ff6090','#ffa0c0','#ffe080'][i%3];
+    ctx.fillRect(fx,fy,2,2);
+  }
+
+  // River at bottom edge
+  ctx.fillStyle='#276468';ctx.fillRect(x,y+h-6,w,6);
+  ctx.fillStyle='#1e4a72';ctx.fillRect(x,y+h-4,w,1);
+  ctx.fillStyle='rgba(255,160,60,0.1)';ctx.fillRect(x,y+h-3,w,1);
+}
+
+// ── CARS ──
+function drawCars(){
+  // Parked cars near Riverside Park (road-side parking, rows 7-8)
+  const pc=[
+    {x:13*TS+4, y:7*TS+10, c:'#c0c8e0', c2:'#a8b0cc'}, // silver-blue
+    {x:17*TS+2, y:7*TS+8,  c:'#4a7040', c2:'#3a5830'}, // forest green
+  ];
+  for(let p of pc){
+    ctx.fillStyle=p.c;ctx.fillRect(p.x+2,p.y+5,TS-6,10);
+    ctx.fillStyle=p.c2;ctx.fillRect(p.x+5,p.y,TS-12,7);
+    ctx.fillStyle='rgba(160,190,220,0.5)';ctx.fillRect(p.x+6,p.y+1,TS-14,6);
+    ctx.fillStyle='#111';
+    ctx.beginPath();ctx.arc(p.x+5,p.y+15,4,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(p.x+TS-7,p.y+15,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,240,80,0.5)';ctx.fillRect(p.x+TS-6,p.y+6,3,3);
+    ctx.fillStyle='rgba(255,80,80,0.4)';ctx.fillRect(p.x+2,p.y+6,3,3);
+  }
+  // White VW Golf — compact hatchback, parked on road
+  const g1x=15*TS,g1y=7*TS+8;
+  ctx.fillStyle='#e8e8e4';ctx.fillRect(g1x+2,g1y+6,TS-4,12);
+  ctx.fillStyle='#d0d0cc';ctx.fillRect(g1x+6,g1y,TS-14,8);
+  ctx.fillStyle='rgba(160,200,240,0.55)';ctx.fillRect(g1x+7,g1y+1,TS-16,7);
+  ctx.fillStyle='#111';
+  ctx.beginPath();ctx.arc(g1x+5,g1y+18,4,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(g1x+TS-7,g1y+18,4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,240,80,0.6)';ctx.fillRect(g1x+TS-5,g1y+8,3,4);
+  ctx.fillStyle='rgba(255,80,80,0.5)';ctx.fillRect(g1x+2,g1y+8,3,4);
+  ctx.fillStyle='#888';ctx.fillRect(g1x+TS/2-3,g1y+6,6,1);// VW grill hint
+
+  // Black Mercedes G-Class — tall boxy SUV
+  const g2x=16*TS+4,g2y=13*TS-14;
+  ctx.fillStyle='#1a1a1a';ctx.fillRect(g2x+2,g2y+8,TS-4,16);
+  ctx.fillStyle='#222';ctx.fillRect(g2x+4,g2y,TS-8,10);
+  ctx.fillStyle='rgba(140,180,220,0.4)';ctx.fillRect(g2x+5,g2y+1,TS-10,9);
+  ctx.fillStyle='#0a0a0a';
+  ctx.beginPath();ctx.arc(g2x+5,g2y+24,5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(g2x+TS-7,g2y+24,5,0,Math.PI*2);ctx.fill();
+  // boxy roof rack detail
+  ctx.fillStyle='#333';ctx.fillRect(g2x+4,g2y-2,TS-8,3);
+  ctx.fillStyle='rgba(255,240,80,0.5)';ctx.fillRect(g2x+TS-5,g2y+10,3,5);
+  ctx.fillStyle='rgba(255,80,80,0.4)';ctx.fillRect(g2x+2,g2y+10,3,5);
+  // grille
+  ctx.strokeStyle='#444';ctx.lineWidth=1;
+  ctx.strokeRect(g2x+6,g2y+8,TS-12,6);
+  for(let i=0;i<3;i++){ctx.beginPath();ctx.moveTo(g2x+6,g2y+10+i*2);ctx.lineTo(g2x+TS-6,g2y+10+i*2);ctx.stroke();}
+}
+
+// ── SCOOTERS (Taiwanese step-through style) ──
+function drawScooters(){
+  const sc=[
+    {x:2*TS+4,y:6*TS+10,c:'#a87a7b'},
+    {x:5*TS+4,y:6*TS+10,c:'#3c9f9c'},
+    {x:8*TS+4,y:7*TS+10,c:'#a58c27'},
+    {x:11*TS+4,y:7*TS+10,c:'#804040'},
+  ];
+  for(let s of sc){
+    const{x,y,c}=s;
+
+    // Very horizontal and low profile body
+    ctx.fillStyle=c;
+
+    // Prominent front fairing (wide, angular)
+    ctx.fillRect(x+1,y+5,12,10);   // main fairing body
+    ctx.fillRect(x+3,y+3,8,4);     // upper fairing
+
+    // Small windshield on fairing
+    ctx.fillStyle='rgba(160,210,240,0.5)';
+    ctx.fillRect(x+5,y+2,4,3);
+
+    // Step-through gap (critical feature!)
+    // No body here - just the step-through space
+
+    // Fat rear section / storage box
+    ctx.fillStyle=c;
+    ctx.fillRect(x+14,y+4,14,11);
+
+    // Floorboard (long and flat)
+    ctx.fillRect(x+9,y+12,12,4);
+
+    // Seat (long, flat)
+    ctx.fillStyle='#282020';
+    ctx.fillRect(x+16,y+2,10,5);
+
+    // Handlebar visible above front fairing
+    ctx.fillStyle='#383838';
+    ctx.fillRect(x+6,y,6,2);
+    ctx.fillRect(x+8,y-1,2,3);
+
+    // Small headlight on front fairing
+    ctx.fillStyle='rgba(255,240,160,0.7)';
+    ctx.beginPath();ctx.arc(x+7,y+6,3,0,Math.PI*2);ctx.fill();
+    // Headlight glow
+    ctx.fillStyle='rgba(255,240,160,0.25)';
+    ctx.beginPath();ctx.arc(x+7,y+6,5,0,Math.PI*2);ctx.fill();
+
+    // Two fat wheels with hub detail
+    ctx.fillStyle='#0a0a0a';
+    ctx.beginPath();ctx.arc(x+6,y+17,5,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(x+24,y+17,5,0,Math.PI*2);ctx.fill();
+    // Hub
+    ctx.fillStyle='#484848';
+    ctx.beginPath();ctx.arc(x+6,y+17,2,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(x+24,y+17,2,0,Math.PI*2);ctx.fill();
+
+    // Red tail light rear
+    ctx.fillStyle='rgba(255,40,40,0.75)';
+    ctx.fillRect(x+26,y+6,2,4);
+
+    // Exhaust pipe
+    ctx.fillStyle='#505050';
+    ctx.fillRect(x+20,y+14,6,2);
+  }
+}
+
+// ── STREET FOOD CART ──
+function drawFoodCart(){
+  const cx=0*TS+18,cy=9*TS+10;
+  ctx.fillStyle='#7a4818';ctx.fillRect(cx,cy+10,26,18);
+  ctx.fillStyle='#a06030';ctx.fillRect(cx-4,cy+2,34,10);
+  // steam
+  for(let i=0;i<3;i++){
+    const sw=Math.sin(animT*0.07+i*2.1)*2|0;
+    ctx.fillStyle=`rgba(255,235,210,${0.32-i*0.08})`;
+    ctx.fillRect(cx+6+i*6+sw,cy-4-i*5,2,4);
+  }
+  ctx.fillStyle='#1e0e04';
+  ctx.beginPath();ctx.arc(cx+4, cy+28,5,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(cx+22,cy+28,5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='rgba(255,200,100,0.7)';
+  ctx.fillRect(cx+2,cy+4,22,6);
+}
+
+// ── CITY SKYLINE (background buildings behind top row) ──
+function drawBuildings(){
+  const blds=[
+    {x:0,  w:32,h:58,c:'#0d0b1c'},{x:34, w:22,h:50,c:'#100e20'},
+    {x:60, w:38,h:64,c:'#0a0818'},{x:102,w:18,h:52,c:'#0e0c1e'},
+    {x:125,w:32,h:60,c:'#0d0b1c'},{x:162,w:26,h:48,c:'#100e20'},
+    {x:195,w:42,h:62,c:'#0a0818'},{x:245,w:28,h:56,c:'#0d0b1c'},
+    {x:280,w:20,h:68,c:'#100e20'},{x:308,w:38,h:58,c:'#0a0818'},
+    {x:355,w:24,h:52,c:'#0d0b1c'},{x:388,w:34,h:62,c:'#100e20'},
+    {x:432,w:46,h:56,c:'#0a0818'},{x:488,w:26,h:64,c:'#0d0b1c'},
+    {x:525,w:30,h:52,c:'#100e20'},{x:565,w:38,h:60,c:'#0a0818'},
+    {x:610,w:30,h:54,c:'#0d0b1c'},
+  ];
+  for(let b of blds){
+    const by=32-b.h;
+    ctx.fillStyle=b.c;ctx.fillRect(b.x,by,b.w,b.h);
+    // water tower / AC unit on taller buildings
+    if(b.h>28){ctx.fillStyle='#090718';ctx.fillRect(b.x+b.w/2-4|0,by-5,8,6);}
+    // lit windows (pseudo-random by position)
+    for(let wy2=by+3;wy2<28;wy2+=6){
+      for(let wx2=b.x+3;wx2<b.x+b.w-4;wx2+=5){
+        const seed=(wx2*7+wy2*13)%19;
+        if(seed<7){
+          ctx.fillStyle=seed<3?'rgba(255,220,100,0.75)':'rgba(200,220,255,0.55)';
+          ctx.fillRect(wx2,wy2,3,3);
+        }
+      }
+    }
+  }
+}
+
+// ── PLAYER (chibi style) ──
+function drawPlayer(p,idx){
+  const bx=Math.round(p.x-8),by=Math.round(p.y-10);
+  const moving=Math.abs(p.vx)+Math.abs(p.vy)>0.1;
+  const bob=moving?(Math.sin(animT*0.28)*1.5|0):0;
+  const ls=moving?(Math.sin(animT*0.28)*3|0):0;
+
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.18)';
+  ctx.beginPath();ctx.ellipse(p.x,p.y+10,7,3,0,0,Math.PI*2);ctx.fill();
+
+  // legs
+  ctx.fillStyle=p.pants;
+  ctx.fillRect(bx+3, by+13+bob,4,7-ls);
+  ctx.fillRect(bx+9, by+13+bob,4,7+ls);
+  // shoes
+  ctx.fillStyle='#181010';
+  ctx.fillRect(bx+2, by+20+bob-ls,5,2);
+  ctx.fillRect(bx+8, by+20+bob+ls,5,2);
+  // shirt/body
+  ctx.fillStyle=p.shirt;
+  ctx.fillRect(bx+1,by+7+bob,12,8);
+  // arms
+  ctx.fillStyle=p.shirt;
+  ctx.fillRect(bx-0,by+7+bob+(ls/2|0),4,6);
+  ctx.fillRect(bx+12,by+7+bob-(ls/2|0),4,6);
+  // hands
+  ctx.fillStyle=p.skin;
+  ctx.fillRect(bx-1,by+13+bob,3,3);
+  ctx.fillRect(bx+13,by+13+bob,3,3);
+  // neck
+  ctx.fillStyle=p.skin;ctx.fillRect(bx+6,by+5+bob,4,4);
+
+  // HEAD — rounder, bigger for chibi
+  ctx.fillStyle=p.skin;ctx.fillRect(bx+2,by+bob,12,8);
+  // cheeks
+  ctx.fillStyle='rgba(240,140,140,0.45)';
+  ctx.fillRect(bx+2,by+4+bob,3,2);ctx.fillRect(bx+11,by+4+bob,3,2);
+  // eyes — big dot eyes
+  ctx.fillStyle='#181010';
+  ctx.fillRect(bx+3,by+3+bob,3,3);ctx.fillRect(bx+9,by+3+bob,3,3);
+  // eye shine
+  ctx.fillStyle='#fff';
+  ctx.fillRect(bx+5,by+3+bob,1,1);ctx.fillRect(bx+10,by+3+bob,1,1);
+
+  // hair
+  ctx.fillStyle=p.hair;
+  ctx.fillRect(bx+2,by+bob,12,2); // top
+  if(p.isGirl){
+    // short bob — sides come down to jaw
+    ctx.fillRect(bx+0,by+bob,3,10);
+    ctx.fillRect(bx+12,by+bob,3,10);
+    ctx.fillRect(bx+2,by+bob-2,12,3); // top volume
+  } else {
+    // spiky short dark hair
+    ctx.fillRect(bx+2,by+bob-2,12,3);
+    ctx.fillRect(bx+2,by+bob-3,3,2);
+    ctx.fillRect(bx+7,by+bob-4,4,3);
+    ctx.fillRect(bx+11,by+bob-3,3,2);
+    // glasses
+    // ctx.strokeStyle='#2a2020';ctx.lineWidth=0.8;
+    // ctx.strokeRect(bx+3,by+2+bob,4,3);
+    // ctx.strokeRect(bx+9,by+2+bob,4,3);
+    // ctx.beginPath();ctx.moveTo(bx+7,by+3+bob);ctx.lineTo(bx+9,by+3+bob);ctx.stroke();
+  }
+
+  // label
+  ctx.fillStyle=idx===0?'#87ceeb':'#c4a0e8';
+  ctx.font='8px monospace';ctx.textAlign='center';
+  ctx.fillText(p.label,p.x,by-4+bob);
+  ctx.textAlign='left';
+}
+
+// ── HEARTS ──
+function drawHearts(){
+  for(let h of hearts){
+    ctx.globalAlpha=h.life;
+    ctx.fillStyle=h.color;ctx.font=`${h.size|0}px monospace`;ctx.textAlign='center';
+    ctx.fillText('♥',h.x,h.y);
+  }
+  ctx.globalAlpha=1;ctx.textAlign='left';
+}
+
+// ── LANDMARK GLOW + DONE ──
+function drawLandmarkOverlay(o){
+  const x=o.tx*TS,y=o.ty*TS,w=o.W*TS,h=o.H*TS;
+  const ox=x+w/2,oy=y+h/2;
+  const d0=Math.hypot(players[0].x-ox,players[0].y-oy);
+  const d1=Math.hypot(players[1].x-ox,players[1].y-oy);
+  const p0near=d0<58,p1near=d1<58;
+  const done=found.has(o.id);
+  if(!done){
+    if(p0near&&p1near){
+      ctx.strokeStyle=o.color;ctx.lineWidth=1.5;
+      ctx.globalAlpha=0.4+0.4*Math.sin(animT*0.1);
+      ctx.strokeRect(x-1,y-1,w+2,h+2);ctx.globalAlpha=1;
+      ctx.font='8px monospace';ctx.textAlign='center';
+      const tw=ctx.measureText('[SPACE]').width;
+      ctx.fillStyle='rgba(0,0,0,0.65)';
+      ctx.fillRect(x+w/2-tw/2-4,y-18,tw+8,12);
+      ctx.fillStyle=o.color;
+      ctx.fillText('[SPACE]',x+w/2,y-8);ctx.textAlign='left';
+    } else if(p0near||p1near){
+      ctx.strokeStyle=o.color;ctx.lineWidth=1;
+      ctx.globalAlpha=0.15+0.1*Math.sin(animT*0.1);
+      ctx.strokeRect(x-1,y-1,w+2,h+2);ctx.globalAlpha=1;
+      const waiting=p0near?'[ waiting for P2 ]':'[ waiting for P1 ]';
+      ctx.font='8px monospace';ctx.textAlign='center';
+      const tw=ctx.measureText(waiting).width;
+      ctx.fillStyle='rgba(0,0,0,0.65)';
+      ctx.fillRect(x+w/2-tw/2-4,y-18,tw+8,12);
+      ctx.fillStyle='rgba(200,180,140,0.6)';
+      ctx.fillText(waiting,x+w/2,y-8);ctx.textAlign='left';
+    }
+  }
+  if(done){
+    ctx.fillStyle='rgba(0,0,0,0.42)';ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#a8d8a8';ctx.font='9px monospace';ctx.textAlign='center';
+    ctx.fillText('✓',x+w/2,y+h/2+4);ctx.textAlign='left';
+  }
+}
+
+// ── ENDING ──
+function updateEnding(){
+  endingTimer++;
+  if(endingState===1){
+    const tx=10*TS,ty=7*TS+8;let done=true;
+    for(let p of players){
+      const dx=tx-p.x,dy=ty-p.y,d=Math.sqrt(dx*dx+dy*dy);
+      if(d>5){done=false;p.x+=dx/d*1.2;p.y+=dy/d*1.2;p.vx=dx/d;p.vy=dy/d;}
+      else{p.vx=0;p.vy=0;}
+    }
+    if(done){endingState=2;endingTimer=0;}
+  }
+  if(endingState===2){
+    if(endingTimer===1)spawnHearts(10*TS,7*TS+8);
+    for(let h of hearts){h.x+=h.vx;h.y+=h.vy;h.vy+=0.06;h.life-=0.010;}
+    hearts=hearts.filter(h=>h.life>0);
+    if(endingTimer>90){endingState=3;endingTimer=0;}
+  }
+  if(endingState===3&&endingTimer===1){
+    const ed=document.getElementById('ending');ed.style.display='flex';
+    setTimeout(()=>{ed.style.background='rgba(8,6,14,0.95)';},50);
+    setTimeout(()=>{
+      document.getElementById('ending-text').textContent='happy anniversary ❤';
+      document.getElementById('ending-text').style.opacity='1';
+      setTimeout(()=>{
+        document.getElementById('ending-sub').textContent='you feel like home';
+        document.getElementById('ending-sub').style.opacity='1';
+        setTimeout(()=>{document.getElementById('ending-journal').style.opacity='1';},800);
+      },1000);
+    },600);
+  }
+}
+
+// ── UPDATE ──
+function update(){
+  animT++;
+  if(sceneState===1){fadeTrans=Math.min(1,fadeTrans+0.013);return;}
+  if(sceneState===2){fadeTrans=Math.max(0,fadeTrans-0.025);if(fadeTrans<=0)sceneState=0;return;}
+  if(endingState>0){updateEnding();return;}
+  if(dlgActive||journalOpen)return;
+
+  function move(p,u,d2,l,r){
+    let dx=0,dy=0;
+    if(keys[l]){dx=-p.speed;}if(keys[r]){dx=p.speed;}
+    if(keys[u]){dy=-p.speed;}if(keys[d2]){dy=p.speed;}
+    if(dx&&dy){dx*=0.707;dy*=0.707;}
+    p.vx=dx;p.vy=dy;
+    if(canWalk(p.x+dx,p.y))p.x+=dx;
+    if(canWalk(p.x,p.y+dy))p.y+=dy;
+  }
+  move(players[0],'w','s','a','d');
+  move(players[1],'ArrowUp','ArrowDown','ArrowLeft','ArrowRight');
+
+  // right edge → scene transition
+  if(sceneState===0&&endingState===0){
+    for(let p of players){if(p.x>17.6*TS){sceneState=1;break;}}
+  }
+
+  if(dlgTyping){
+    dlgTimer++;
+    if(dlgTimer%2===0&&dlgTyped.length<dlgFull.length){
+      dlgTyped=dlgFull.slice(0,dlgTyped.length+1);
+      document.getElementById('dlg-text').textContent=dlgTyped;
+      if(dlgTyped.length===dlgFull.length){dlgTyping=false;document.getElementById('dlg-next').style.display='block';}
+    }
+  }
+}
+
+// ── DRAW ──
+function draw(){
+  // 1. Sky gradient + stars + power lines + birds
+  drawSky();
+
+  // 2. Background buildings (distant skyline)
+//   drawBuildings();
+
+  // 3. All tiles (including new grass and vegetation tiles)
+  for(let ty=0;ty<TH;ty++){
+    for(let tx=0;tx<TW;tx++){
+      drawTile(tx,ty,MAP[ty][tx]);
+    }
+  }
+
+  // 3.5. Crosswalk (on top of road tiles)
+  drawCrosswalk();
+
+  // 4. Street trees and vegetation
+  drawStreetTrees();
+
+  // 5. Light spill overlays
+  drawLightSpill();
+
+  // 6. Filler buildings
+  drawFillerBuildings();
+
+  // 7. Ambient objects (scooters, food cart, cars)
+  drawScooters();
+  drawFoodCart();
+  drawCars();
+
+  // 8. Landmarks
+  const lx=OBJECTS[0];draw7Eleven(lx.tx*TS,lx.ty*TS,lx.W,lx.H);
+  const lm=OBJECTS[1];drawMRT(lm.tx*TS,lm.ty*TS,lm.W,lm.H);
+  const lk=OBJECTS[2];drawMarket(lk.tx*TS,lk.ty*TS,lk.W,lk.H);
+  const lp=OBJECTS[3];drawPark(lp.tx*TS,lp.ty*TS,lp.W,lp.H);
+  const ln=OBJECTS[4];drawNoodle(ln.tx*TS,ln.ty*TS,ln.W,ln.H);
+
+  // 9. Landmark glow/done overlays
+  OBJECTS.forEach(drawLandmarkOverlay);
+
+  // 10. Players (depth sorted by y)
+  [...players].map((p,i)=>({p,i})).sort((a,b)=>a.p.y-b.p.y).forEach(({p,i})=>drawPlayer(p,i));
+
+  // 11. Hearts (ending sequence)
+  if(hearts.length)drawHearts();
+
+  // 12. Scene transition fade
+  // // right-edge navigation arrow
+  // if(sceneState===0&&!dlgActive&&!journalOpen&&endingState===0){
+  //   const aa=0.3+0.3*Math.sin(animT*0.07);
+  //   ctx.fillStyle=`rgba(247,212,136,${aa})`;
+  //   ctx.font='11px monospace';ctx.textAlign='center';
+  //   ctx.fillText('▶',630,234);ctx.fillText('▶',630,250);
+  //   ctx.font='6px monospace';
+  //   ctx.fillStyle=`rgba(247,212,136,${aa*0.7})`;
+  //   ctx.fillText('NEXT',630,264);
+  //   ctx.textAlign='left';
+  // }
+  // scene transition fade
+  if(fadeTrans>0){
+    ctx.fillStyle=`rgba(0,0,0,${fadeTrans})`;
+    ctx.fillRect(0,0,640,480);
+    if(fadeTrans>=1){
+      ctx.fillStyle='#f7d488';ctx.font='13px monospace';ctx.textAlign='center';
+      ctx.fillText('THE WORLD AWAITS',320,228);
+      ctx.fillStyle='rgba(200,180,140,0.6)';ctx.font='8px monospace';
+      ctx.fillText('more chapters coming soon',320,250);
+      ctx.fillStyle='rgba(180,160,120,0.4)';
+      ctx.fillText('[ ← go back ]',320,272);
+      ctx.textAlign='left';
+    }
+  }
+}
+
+// ── INPUT ──
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
+  if(e.key===' '){
+    if(dlgActive){advanceDlg();}
+    else if(!journalOpen&&endingState===0){const{obj}=getNear();if(obj)startDlg(obj);}
+  }
+  if((e.key==='j'||e.key==='J')&&!dlgActive)toggleJournal();
+  if(e.key==='Escape'&&journalOpen)toggleJournal();
+  if(e.key==='ArrowLeft'&&sceneState===1){
+    sceneState=2;
+    for(let p of players){if(p.x>16*TS)p.x=16*TS;}
+  }
+});
+document.addEventListener('keyup',e=>{keys[e.key]=false;});
+document.getElementById('journal-close').onclick=toggleJournal;
+document.getElementById('ending-journal').onclick=toggleJournal;
+
+const startGame=()=>{document.getElementById('titlescreen').style.display='none';};
+document.getElementById('start-btn').onclick=startGame;
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('titlescreen').style.display!=='none'){
+    startGame();
+  }
+});
+
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script>
